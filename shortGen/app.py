@@ -21,7 +21,7 @@ from utils.youtube_uploader import authenticate_youtube, upload_video
 from utils.youtube_uploader import get_authenticated_service, get_channel_analytics, get_video_analytics, convert_analytics_to_dataframe, analyze_video_performance, get_all_video_ids , get_authenticated_channel_id
 
 from utils.process_video_and_score import allowed_file , process_video
-
+import config
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -31,18 +31,15 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Configuration
-UPLOAD_FOLDER = 'uploads'
-RESULTS_FOLDER = 'results'
-ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi', 'mkv', 'webm'}
-MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB max upload size
+
 
 # Create necessary directories
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULTS_FOLDER, exist_ok=True)
+os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(config.RESULTS_FOLDER, exist_ok=True)
 os.makedirs('temp', exist_ok=True)
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+app.config['UPLOAD_FOLDER'] = config.UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = config.MAX_CONTENT_LENGTH
 
 # Dictionary to store job status
 jobs = {}
@@ -103,7 +100,7 @@ def upload_to_youtube():
             return jsonify({'error': 'Invalid highlight index'}), 400
             
         highlight_metadata = job['metadata'][highlight_index]
-        highlight_path = os.path.join(RESULTS_FOLDER, job_id, highlight_metadata['filename'])
+        highlight_path = os.path.join(config.RESULTS_FOLDER, job_id, highlight_metadata['filename'])
         
         # Check if file exists
         if not os.path.exists(highlight_path):
@@ -262,7 +259,7 @@ def get_job_results(job_id):
         'status': 'complete',
         'highlights': highlight_urls,
         # Include download link for transcript if available
-        'transcript_url': f"/api/transcript/{job_id}" if os.path.exists(os.path.join(RESULTS_FOLDER, job_id, 'transcript.txt')) else None
+        'transcript_url': f"/api/transcript/{job_id}" if os.path.exists(os.path.join(config.RESULTS_FOLDER, job_id, 'transcript.txt')) else None
     }), 200
 
 @app.route('/api/download/<job_id>/<filename>', methods=['GET'])
@@ -277,7 +274,7 @@ def download_file(job_id, filename):
         return jsonify({'error': 'Job is not complete yet'}), 400
     
     # Validate filename
-    file_path = os.path.join(RESULTS_FOLDER, job_id, filename)
+    file_path = os.path.join(config.RESULTS_FOLDER, job_id, filename)
     print("filepath",file_path)
     if not os.path.exists(file_path):
         return jsonify({'error': 'File not found'}), 404
@@ -291,7 +288,7 @@ def get_transcript(job_id):
         return jsonify({'error': 'Job not found'}), 404
     
     # Validate transcript exists
-    transcript_path = os.path.join(RESULTS_FOLDER, job_id, 'transcript.txt')
+    transcript_path = os.path.join(config.RESULTS_FOLDER, job_id, 'transcript.txt')
     if not os.path.exists(transcript_path):
         return jsonify({'error': 'Transcript not available'}), 404
     
@@ -313,7 +310,7 @@ def cleanup_old_jobs():
                     os.remove(job['file_path'])
                 
                 # Delete result folder
-                job_folder = os.path.join(RESULTS_FOLDER, job_id)
+                job_folder = os.path.join(config.RESULTS_FOLDER, job_id)
                 if os.path.exists(job_folder):
                     shutil.rmtree(job_folder)
                 

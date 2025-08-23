@@ -19,24 +19,19 @@ import pandas as pd
 from utils.scene_intensity import analyze_scene_intensity
 from utils.sentiment_analysis import analyze_sentiment
 # Configuration
-UPLOAD_FOLDER = 'uploads'
-RESULTS_FOLDER = 'results'
-ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi', 'mkv', 'webm'}
-CLIENT_ID = "258906969713-gc1i9mcn8at6uhaj58lf9s49maf6p5r1.apps.googleusercontent.com"
-CLIENT_SECRET = "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"
-REDIRECT_URI = "http://localhost:5000/oauth2callback"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+import config
 
 # Create necessary directories
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULTS_FOLDER, exist_ok=True)
+os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(config.RESULTS_FOLDER, exist_ok=True)
 os.makedirs('temp', exist_ok=True)
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in config.ALLOWED_EXTENSIONS
 
 def merge_scores(sentiment_scores, intensity_scores, weight_sentiment=0.4, weight_intensity=0.6, num_highlights=3):
     """
@@ -122,7 +117,7 @@ def process_video(video_path, jobs, job_id, num_highlights=3, highlight_duration
 
 # another
     try:
-        job_folder = os.path.join(RESULTS_FOLDER, job_id)
+        job_folder = os.path.join(config.RESULTS_FOLDER, job_id)
         os.makedirs(job_folder, exist_ok=True)
         
         # Update job status
