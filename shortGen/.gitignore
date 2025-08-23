@@ -4,3 +4,4 @@ temp/
 uploads/
 __pycache__/
 .DS_Store
+youtube_token.pickle
