@@ -9,7 +9,7 @@ import os
 import logging
 import pandas as pd
 from google.oauth2.credentials import Credentials
-import config
+import config.config as config
 
 # Configure logging
 logger = logging.getLogger(__name__)

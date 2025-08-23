@@ -23,7 +23,7 @@ from utils.sentiment_analysis import analyze_sentiment
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-import config
+import config.config as config
 
 # Create necessary directories
 os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
