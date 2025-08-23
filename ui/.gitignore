@@ -157,3 +157,5 @@ coverage/
 
 # Options JSON
 options_autoshorts.json
+
+.DS_Store

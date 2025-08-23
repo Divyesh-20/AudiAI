@@ -2,3 +2,4 @@ venv
 processed
 uploads
 __pycache__
+.DS_Store

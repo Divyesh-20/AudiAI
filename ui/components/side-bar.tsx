@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({ children }) => {
         <div className="p-6 border-b border-pink-100">
           <Link href="/">
             <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-              AudiHealth
+              MediaMind
             </h1>
           </Link>
         </div>

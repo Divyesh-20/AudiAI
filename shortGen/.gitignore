@@ -2,3 +2,5 @@ venv
 results/
 temp/
 uploads/
+__pycache__/
+.DS_Store

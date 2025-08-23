@@ -3,9 +3,13 @@ from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
+import datetime
 import pickle
 import os
 import logging
+import pandas as pd
+from google.oauth2.credentials import Credentials
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -154,7 +158,7 @@ def get_authenticated_service():
     
     # Check if token file exists
     if os.path.exists(token_file):
-        creds = Credentials.from_authorized_user_file(token_file, SCOPES)
+        creds = Credentials.from_authorized_user_file(token_file, YOUTUBE_SCOPES)
     
     # If credentials don't exist or are invalid, get new ones
     if not creds or not creds.valid:
@@ -162,7 +166,7 @@ def get_authenticated_service():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'client_secret.json', SCOPES)
+                'client_secret.json', YOUTUBE_SCOPES)
             creds = flow.run_local_server(port=0)
         
         # Save the credentials for future use
@@ -392,7 +396,7 @@ def interactive_analytics():
     
     # Get default date range (last 30 days)
     end_date = datetime.now().strftime('%Y-%m-%d')
-    start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+    start_date = (datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
     
     while True:
         print("\n--- YouTube Analytics Explorer ---")

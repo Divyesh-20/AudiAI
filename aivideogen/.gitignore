@@ -5,3 +5,4 @@ __pycache__/
 rendered_video.mp4
 audio_tts.wav
 .env
+.DS_Store

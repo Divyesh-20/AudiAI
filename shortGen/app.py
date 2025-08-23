@@ -7,6 +7,7 @@ import threading
 import time
 import shutil
 import logging
+import datetime
 from werkzeug.utils import secure_filename
 
 # Import video processing functions
@@ -20,7 +21,7 @@ from utils.scene_intensity import analyze_scene_intensity
 from utils.sentiment_analysis import analyze_sentiment
 from utils.youtube_uploader import authenticate_youtube, upload_video
 
-from utils.youtube_uploader import get_authenticated_service, get_channel_analytics, get_video_analytics, convert_analytics_to_dataframe, analyze_video_performance, get_all_video_ids
+from utils.youtube_uploader import get_authenticated_service, get_channel_analytics, get_video_analytics, convert_analytics_to_dataframe, analyze_video_performance, get_all_video_ids , get_authenticated_channel_id
 
 
 
@@ -719,7 +720,7 @@ def get_channel_overview():
 
         # Get the date range (default: last 30 days)
         end_date = datetime.now().strftime('%Y-%m-%d')
-        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        start_date = (datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
 
         # Fetch channel analytics
         analytics = get_channel_analytics(youtube_analytics, channel_id, start_date, end_date)
@@ -750,7 +751,7 @@ def get_video_performance():
 
         # Get the date range (default: last 30 days)
         end_date = datetime.now().strftime('%Y-%m-%d')
-        start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+        start_date = (datetime.now() - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
 
         # Fetch video analytics
         analytics = get_video_analytics(youtube_analytics, channel_id, video_id, start_date, end_date)
