@@ -47,7 +47,7 @@ export default function ZoomedVideoGenerator() {
       const formData = new FormData();
       formData.append("file", videoFile);
 
-      const response = await fetch("http://localhost:8000/process-video", {
+      const response = await fetch("http://localhost:8080/process-video", {
         method: "POST",
         body: formData,
       });

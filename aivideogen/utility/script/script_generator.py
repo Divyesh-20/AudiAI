@@ -14,28 +14,22 @@ else:
 
 def generate_script(topic: str, duration: int) -> str:
     """
-    Generates a punchy social‑media “reel” script for the given topic and duration.
-    Returns the raw script text.
+    Generates a punchy social-media “reel” script for the given topic and duration.
+    Returns only the script text, safely parsed from model output.
     """
     system_prompt = f"""
-You are a creative, persuasive copywriter specializing in short‑form social media videos 
+You are a creative, persuasive copywriter specializing in short-form social media videos 
 (Instagram Reels, TikTok, YouTube Shorts). Your task is to craft a highly engaging, 
 emotionally resonant script under {duration} seconds that hooks viewers in the first 2 seconds 
 and drives them to action or keeps them watching.
 
-The topic may be anything—an event, product launch, tutorial, announcement, or cause. 
-Maintain a positive and dynamic tone. Often include:
-- A striking opening line or question
-- One or two surprising facts or emotional hooks
-- Clear, concise visuals cues (e.g., “Show close‑up of product → cut to user reaction”)
-- A strong call‑to‑action or memorable closing tagline
+Rules:
+- Always respond ONLY in valid JSON.
+- The JSON must have exactly one key: "script".
+- No explanations, no markdown, no extra text.
 
-When the user provides a topic (e.g., “Summer sale announcement” or “5‑minute morning yoga routine”), 
-generate a JSON‑formatted response with a single key `"script"` and the full script text. 
-Do not add any extra keys or explanatory text.
-
-Output format:
-{{ "script": "Your concise, punchy reel script goes here..." }}
+Example:
+{{ "script": "Did you know 90% of people fail their goals by February? Here's how to stay on track..." }}
 """
 
     response = client.chat.completions.create(
@@ -46,13 +40,28 @@ Output format:
         ]
     )
 
-    content = response.choices[0].message.content
-    # Safely parse the JSON
+    content = response.choices[0].message.content.strip()
+    print("🔍 Raw LLM content >>>", content)
+
+
+    # First, try direct JSON parsing
     try:
         return json.loads(content)["script"]
+
+    # If model added extra text → try extracting {...}
     except Exception:
-        # fallback to manual extraction
         start = content.find("{")
-        end   = content.rfind("}") + 1
-        data  = json.loads(content[start:end])
-        return data["script"]
+        end = content.rfind("}") + 1
+        raw_json = content[start:end].strip()
+
+        if not raw_json:
+            print("⚠️ Model returned non-JSON:", content)
+            return f"[Script fallback] {topic} in {duration} seconds."
+
+        try:
+            data = json.loads(raw_json)
+            return data.get("script", f"[Script fallback] {topic}")
+        except json.JSONDecodeError as e:
+            print("⚠️ JSON decode error:", e)
+            print("Raw model content:", content)
+            return f"[Script fallback] {topic} in {duration} seconds."

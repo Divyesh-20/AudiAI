@@ -1,10 +1,40 @@
 import os
 import traceback
 import asyncio
+import shutil
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from moviepy.config import change_settings
 
-# Utility imports
+# ------------------ Dynamic ImageMagick Detection ------------------
+def detect_imagemagick():
+    # Check system PATH first
+    path = shutil.which("magick")
+    if path and os.path.isfile(path):
+        change_settings({"IMAGEMAGICK_BINARY": path})
+        print(f"✅ ImageMagick detected in PATH: {path}")
+        return path
+
+    # Check common installation directories (Windows)
+    common_paths = [
+        r"C:\Program Files\ImageMagick-7.1.2-Q16-HDRI\magick.exe",
+        r"C:\Program Files\ImageMagick-7.1.1-Q16-HDRI\magick.exe",
+        r"C:\Program Files\ImageMagick-7.0.10-Q16\magick.exe",
+    ]
+    for p in common_paths:
+        if os.path.isfile(p):
+            change_settings({"IMAGEMAGICK_BINARY": p})
+            print(f"✅ ImageMagick detected at {p}")
+            return p
+
+    raise EnvironmentError(
+        "❌ ImageMagick not found! Please install it and add it to PATH."
+    )
+
+# Detect at startup
+detect_imagemagick()
+
+# ------------------ Utility imports ------------------
 from utility.script.script_generator import generate_script
 from utility.audio.audio_generator import generate_audio
 from utility.captions.timed_captions_generator import generate_timed_captions
@@ -12,9 +42,9 @@ from utility.video.background_video_generator import generate_video_url, generat
 from utility.render.render_engine import get_output_media
 from utility.video.video_search_query_generator import getVideoSearchQueriesTimed, merge_empty_intervals
 
-# Flask setup
+# ------------------ Flask setup ------------------
 app = Flask(__name__, static_folder="static")
-CORS(app)  # Enable CORS
+CORS(app)
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -46,8 +76,10 @@ def generate_video_api():
         search_terms = getVideoSearchQueriesTimed(script, timed_captions)
 
         # Step 5 - Generate background visuals
-        background_video_urls = generate_image_url(search_terms, VIDEO_SERVER) if search_terms else None
-        background_video_urls = merge_empty_intervals(background_video_urls)
+        background_video_urls = generate_image_url(search_terms, VIDEO_SERVER) if search_terms else []
+
+        # Merge empty intervals
+        background_video_urls = merge_empty_intervals(background_video_urls or [], duration)
 
         # Step 6 - Final video rendering
         if background_video_urls:
@@ -55,6 +87,10 @@ def generate_video_api():
 
             # Ensure it's stored in static/
             video_path = os.path.join("static", "rendered_video.mp4")
+            # Remove existing file to prevent FileExistsError
+            if os.path.exists(video_path):
+                os.remove(video_path)
+
             if not os.path.exists(video_filename):
                 raise FileNotFoundError(f"{video_filename} not found")
 

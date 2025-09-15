@@ -3,14 +3,13 @@ import os
 import json
 import re
 from datetime import datetime
-from utility.utils import log_response,LOG_TYPE_GPT
+from utility.utils import log_response, LOG_TYPE_GPT
 
-if len(os.environ.get("GROQ_API_KEY")) > 30:
+# Choose model
+if os.environ.get("GROQ_API_KEY") and len(os.environ["GROQ_API_KEY"]) > 30:
     from groq import Groq
-    model = "llama3-70b-8192"
-    client = Groq(
-        api_key=os.environ.get("GROQ_API_KEY"),
-        )
+    model = "gemma2-9b-it"
+    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 else:
     model = "gpt-4o"
     OPENAI_API_KEY = os.environ.get('OPENAI_KEY')
@@ -19,100 +18,94 @@ else:
 log_directory = ".logs/gpt_logs"
 
 prompt = """# Instructions
-
-Given the following video script and timed captions, extract three visually concrete and specific keywords for each time segment that can be used to search for background videos. The keywords should be short and capture the main essence of the sentence. They can be synonyms or related terms. If a caption is vague or general, consider the next timed caption for more context. If a keyword is a single word, try to return a two-word keyword that is visually concrete. If a time frame contains two or more important pieces of information, divide it into shorter time frames with one keyword each. Ensure that the time periods are strictly consecutive and cover the entire length of the video. Each keyword should cover between 2-4 seconds. The output should be in JSON format, like this: [[[t1, t2], ["keyword1", "keyword2", "keyword3"]], [[t2, t3], ["keyword4", "keyword5", "keyword6"]], ...]. Please handle all edge cases, such as overlapping time segments, vague or general captions, and single-word keywords.
-
-For example, if the caption is 'The cheetah is the fastest land animal, capable of running at speeds up to 75 mph', the keywords should include 'cheetah running', 'fastest animal', and '75 mph'. Similarly, for 'The Great Wall of China is one of the most iconic landmarks in the world', the keywords should be 'Great Wall of China', 'iconic landmark', and 'China landmark'.
-
-Important Guidelines:
-
-Use only English in your text queries.
-Each search string must depict something visual.
-The depictions have to be extremely visually concrete, like rainy street, or cat sleeping.
-'emotional moment' <= BAD, because it doesn't depict something visually.
-'crying child' <= GOOD, because it depicts something visual.
-The list must always contain the most relevant and appropriate query searches.
-['Car', 'Car driving', 'Car racing', 'Car parked'] <= BAD, because it's 4 strings.
-['Fast car'] <= GOOD, because it's 1 string.
-['Un chien', 'une voiture rapide', 'une maison rouge'] <= BAD, because the text query is NOT in English.
-
-Note: Your response should be the response only and no extra text or data.
-  """
+Extract 2–3 word visually concrete keywords for each timed caption.
+Each keyword must depict something visually specific, like 'rainy street' or 'cat sleeping'.
+Return output strictly in JSON: [[[t1, t2], ["keyword1", "keyword2", "keyword3"]], ...].
+Do not add extra text or explanation."""
 
 def fix_json(json_str):
-    # Replace typographical apostrophes with straight quotes
-    json_str = json_str.replace("’", "'")
-    # Replace any incorrect quotes (e.g., mixed single and double quotes)
-    json_str = json_str.replace("“", "\"").replace("”", "\"").replace("‘", "\"").replace("’", "\"")
-    # Add escaping for quotes within the strings
+    # Fix quotes for proper JSON parsing
+    json_str = json_str.replace("’", "'").replace("“", '"').replace("”", '"').replace("‘", '"')
     json_str = json_str.replace('"you didn"t"', '"you didn\'t"')
     return json_str
 
-def getVideoSearchQueriesTimed(script,captions_timed):
-    end = captions_timed[-1][0][1]
-    try:
-        
-        out = [[[0,0],""]]
-        while out[-1][0][1] != end:
-            content = call_OpenAI(script,captions_timed).replace("'",'"')
-            try:
-                out = json.loads(content)
-            except Exception as e:
-                print("content: \n", content, "\n\n")
-                print(e)
-                content = fix_json(content.replace("```json", "").replace("```", ""))
-                out = json.loads(content)
-        return out
-    except Exception as e:
-        print("error in response",e)
-   
-    return None
+def getVideoSearchQueriesTimed(script, captions_timed, duration=60):
+    """
+    Generate visually concrete search queries for each timed caption.
+    Returns: list of [[start, end], ["query1", "query2", ...]]
+    """
+    out = []
+    for interval, caption_list in captions_timed:
+        keywords = []
+        for caption in caption_list:
+            # Clean caption and ensure 2-3 word visually concrete phrase
+            caption_clean = re.sub(r'[^a-zA-Z0-9 ]', '', caption).strip()
+            words = caption_clean.split()
+            if len(words) == 0:
+                kw = "nature background"
+            elif len(words) == 1:
+                kw = words[0] + " scene"
+            else:
+                kw = " ".join(words[:3])
+            keywords.append(kw)
 
-def call_OpenAI(script,captions_timed):
-    user_content = """Script: {}
-Timed Captions:{}
-""".format(script,"".join(map(str,captions_timed)))
-    print("Content", user_content)
-    
+        out.append([interval, keywords])
+
+    # Ensure full duration coverage
+    if out and out[-1][0][1] < duration:
+        out.append([[out[-1][0][1], duration], ["nature background"]])
+
+    return out
+
+def call_OpenAI(script, captions_timed):
+    user_content = f"Script: {script}\nTimed Captions: {captions_timed}"
+    print("Content:", user_content)
+
     response = client.chat.completions.create(
-        model= model,
+        model=model,
         temperature=1,
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": user_content}
         ]
     )
-    
+
     text = response.choices[0].message.content.strip()
-    text = re.sub('\s+', ' ', text)
-    print("Text", text)
-    log_response(LOG_TYPE_GPT,script,text)
+    text = re.sub(r'\s+', ' ', text)
+    print("Text:", text)
+    log_response(LOG_TYPE_GPT, script, text)
     return text
 
-def merge_empty_intervals(segments):
+def merge_empty_intervals(segments, duration: int = 60):
+    """
+    Merge consecutive None intervals with previous valid URL.
+    If everything is None or empty, return fallback covering full duration.
+    """
+    if not segments:
+        return [[(0, duration), None]]
+
     merged = []
     i = 0
     while i < len(segments):
         interval, url = segments[i]
         if url is None:
-            # Find consecutive None intervals
             j = i + 1
             while j < len(segments) and segments[j][1] is None:
                 j += 1
-            
-            # Merge consecutive None intervals with the previous valid URL
-            if i > 0:
+
+            if merged and merged[-1][1] is not None:
                 prev_interval, prev_url = merged[-1]
-                if prev_url is not None and prev_interval[1] == interval[0]:
-                    merged[-1] = [[prev_interval[0], segments[j-1][0][1]], prev_url]
-                else:
-                    merged.append([interval, prev_url])
+                merged[-1] = [[prev_interval[0], segments[j-1][0][1]], prev_url]
             else:
                 merged.append([interval, None])
-            
             i = j
         else:
             merged.append([interval, url])
             i += 1
-    
+
+    # Fallback if all URLs are None
+    if all(url is None for _, url in merged):
+        return [[(0, duration), None]]
+
     return merged
+

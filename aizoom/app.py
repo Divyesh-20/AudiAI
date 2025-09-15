@@ -55,7 +55,11 @@ def process_zoom_tracking(input_video_path, output_video_path):
 
     frame_h, frame_w = frame.shape[:2]
     zoomed_h = frame_h
-    zoomed_w = int(frame_h * (9 / 16))  # Convert to 16:9 ratio
+    zoomed_w = int(frame_h * (16 / 9))  # Convert to 16:9 ratio
+
+    # --- Full-screen ROI selection ---
+    cv2.namedWindow("Select Object to Track", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Select Object to Track", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     bbox = cv2.selectROI("Select Object to Track", frame, fromCenter=False, showCrosshair=True)
     cv2.destroyAllWindows()
@@ -104,6 +108,7 @@ def process_zoom_tracking(input_video_path, output_video_path):
     cap.release()
     out.release()
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
